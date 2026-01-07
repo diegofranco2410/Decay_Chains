@@ -1,0 +1,4 @@
+# MATLAB Dependencies
+MATLAB Version: R2021a or higher (for xline/yline support)
+Toolboxes: 
+  - Statistics and Machine Learning Toolbox (Required for binornd and mnrnd in Monte Carlo)
