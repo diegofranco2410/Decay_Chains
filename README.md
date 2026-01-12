@@ -1,16 +1,26 @@
-# Analytical and Stochastic Modeling of Radioactive Decay Chains
+# Computational Nuclear Physics: Decay Chains & Source Term Simulation
 
-This repository provides a comprehensive MATLAB framework for simulating radioactive decay kinetics. It implements three distinct computational approaches to solve the coupled differential equations governing nuclear transmutations, supporting complex branching ratios and varying timescales (from microseconds to gigayears).
+![MATLAB](https://img.shields.io/badge/MATLAB-R2021a%2B-orange)
+![License](https://img.shields.io/badge/License-MIT-blue)
+![Physics](https://img.shields.io/badge/Physics-Nuclear_Kinetics-green)
 
-## 1. Physical & Mathematical Framework
+This repository provides a comprehensive MATLAB framework for simulating radioactive decay kinetics. It bridges theoretical physics with nuclear engineering applications, implementing three distinct computational approaches to solve coupled differential equations: **Recursive (Bateman)**, **Matrix Exponential (Linear Algebra)**, and **Stochastic (Monte Carlo)**.
 
-The evolution of a decay chain is governed by the **Law of Radioactive Decay**, where the rate of change of a population $N_i$ depends on its own decay constant $\lambda_i$ and the feeding from its parent(s) $N_{i-1}$.
+A key feature of this repository is the **Nuclear Accident Source Term Simulator**, which models the radiological evolution of a severe reactor accident (I-131 vs. Cs-137) over millennial timescales.
+
+---
+
+## 1. Mathematical Framework & Solvers
+
+The evolution of a decay chain is governed by the **Law of Radioactive Decay**. This framework implements three solvers to handle systems ranging from simple parent-daughter pairs to complex branching networks.
 
 ### A. Recursive Approach (Bateman Equations)
-For a linear chain $1 \to 2 \to \dots \to n$, the population of the $n$-th isotope at time $t$ is given by:
+*Ideal for linear chains and educational validation.*
+
+For a linear chain $1 \to 2 \to \dots \to n$, the population of the $n$-th isotope at time $t$ is derived analytically:
 
 $$
-N_k(t) = \sum_{n=1}^k C_{kn}e^{-\lambda_nt}, \quad \text{con } 
+N_k(t) = \sum_{n=1}^k C_{kn}e^{-\lambda_nt}, \quad \text{where } 
 C_{kn} = 
 \begin{cases} 
    C_{k-1,n}\frac{\lambda_{k-1}}{\lambda_k-\lambda_n}, & n \neq k \\
@@ -18,48 +28,77 @@ C_{kn} =
 \end{cases}
 $$
 
-It can be also applied to chains with branching by considering the branching ratios and correctly identifying the parents. The process is implemented in `DecayChain.m`, this method uses recursive coefficients $C_{i,j}$ to solve for $N(t)$.
+Implemented in `DecayChain.m`. This method calculates the coefficients $C_{kn}$ recursively, ensuring exact solutions for non-looping chains.
 
 ### B. Matrix Formalism (Linear Algebra)
-To handle complex topologies, we represent the system as:
+*Used for the Source Term Simulation and complex branching.*
+
+To handle complex topologies and stiff systems, we represent the system as a first-order differential equation:
 
 $$\frac{d\mathbf{N}(t)}{dt} = \mathbf{\Lambda} \mathbf{N}(t)$$
 
-Where $\mathbf{\Lambda}$ is the **Transition Rate Matrix**. The analytical solution is obtained via the **Matrix Exponential**:
+Where $\mathbf{\Lambda}$ is the **Transition Rate Matrix**. The solution is obtained via the **Matrix Exponential**:
 
 $$\mathbf{N}(t) = \exp(\mathbf{\Lambda} t) \mathbf{N}_0$$
 
-Implemented in `DecayMatrix.m` using MATLAB's `expm()`.
+Implemented in `DecayMatrix.m` using MATLAB's `expm()` (Padé approximation), providing robust stability for systems with widely varying half-lives.
 
-### C. Stochastic Simulation (Monte Carlo Method)
-Implemented in `DecayMonteCarlo.m`, this solver discretizes time and uses **Binomial** and **Multinomial** distributions to simulate the probabilistic nature of decay. This is particularly useful for observing "quantum noise" in low-activity regimes.
+### C. Stochastic Simulation (Monte Carlo)
+*Used for analyzing quantum fluctuations in low-activity regimes.*
 
-## 2. Detailed Physics Analysis
+Implemented in `DecayMonteCarlo.m`, this solver discretizes time and uses **Binomial** and **Multinomial** distributions to simulate the probabilistic nature of individual decay events. Useful for small $N$.
 
-### A. The $^{99}\text{Mo}/^{99m}\text{Tc}$ Medical Generator
-The simulation in `Molibdeno_99.m` models the production of Technetium-99m, the most widely used radioisotope in nuclear medicine. This system is a classic example of **Transient Equilibrium**.
+---
 
-* **Decay Characteristics:** The parent isotope ($^{99}\text{Mo}$) has a half-life of $T_{1/2} \approx 6$ h, while the metastable daughter ($^{99m}\text{Tc}$) has a $T_{1/2} \approx 6$ h.
-* **Transient Equilibrium:** Since $\lambda_{parent} < \lambda_{daughter}$, after approximately 4 half-lives of the daughter, the ratio of their activities becomes constant.
-* **Branching Efficiency:** The model accounts for the fact that only $87.6%$ of $^{99}\text{Mo}$ decays lead to the metastable $^{99m}\text{Tc}$, while the remaining $12.4%$ decay directly to the ground state $^{99}\text{Tc}$.
-* **Clinical Relevance:** The simulation identifies the **Maximum Yield Time** ($t \approx 22.85$ h), which is the optimal moment for "milking" the generator to obtain the highest activity of $^{99m}\text{Tc}$ for diagnostic imaging.
+## 2. Main Application: Nuclear Accident Source Term
+*(Script: `NuclearAccident.m`)*
+
+This module simulates the release and evolution of the **Source Term** for a commercial nuclear reactor (e.g., 3000 MWth). It compares the radiological toxicity of **Iodine-131** (Acute Hazard) and **Cesium-137** (Chronic Hazard).
+
+![Time evolution of I-131 and Cs-137/Ba-137m](NuclearAccidentSimulation.png)
+
+### Physical Model
+1.  **Fission Rate:** Derived from thermal power ($P_{th}$) and energy per fission ($\approx 200$ MeV):
+    $$R_{\text{fission}} \approx P_{\text{th}} \times 3.1 \times 10^{16} \text{ fissions/s}$$
+2.  **Core Inventory:** Calculates the saturation activity for short-lived isotopes (I-131) and linear accumulation for long-lived ones (Cs-137) based on reactor operation time.
+3.  **Safety Limits:** Benchmarked against **UNSCEAR 2000** data (Chernobyl release) and **IAEA GSR Part 3** (Exemption levels).
+
+### Key Insights & Analysis
+* **The Crossover Point:** The simulation identifies the exact moment (approx. 20-30 days post-accident) when the radiological dominance shifts from the thyroid-targeting I-131 to the whole-body irradiation threat of Cs-137.
+* **The "Alpha" Discrepancy:** The simulation shows Gamma activity dropping to safe levels after $\approx 1,000$ years. This contrasts with the 20,000-year uninhabitable zone often cited for Chernobyl, which is driven by soil contamination from **Plutonium-239** (Alpha emitters) and not the Fission Products modeled here.
+
+---
+
+## 3. Other Simulation Modules
+
+### A. Medical Isotope Generator ($^{99}\text{Mo}/^{99m}\text{Tc}$)
+*(Script: `Molibdeno_99.m`)*
+Models the transient equilibrium in technetium generators.
+* **Physics:** Simulates the branching ratio where $87.6\%$ of Mo-99 decays to the metastable state.
+* **Optimization:** Identifies the **Maximum Yield Time** ($t \approx 23$ h) for optimal "milking" of the generator for nuclear medicine imaging.
 
 ![Mo-99 / Tc-99m Kinetics](Activity_comparison_AnvsMC.png)
 
-### B. Natural Decay Series (Geological Timescales)
-The script `Natural_Chains.m` allows for the exploration of the four primordial decay series that shaped the Earth's radiogenic heat and isotopic composition:
+### B. Natural Decay Series (Geochronology)
+*(Script: `Natural_Chains.m`)*
+Simulates the four primordial decay series ($4n$ to $4n+3$).
+* **Numerical Handling:** Utilizes logarithmic time scales to handle the stiffness between $^{238}\text{U}$ ($4.5 \text{ Gy}$) and $^{214}\text{Po}$ ($164 \text{ }\mu\text{s}$).
 
-| Series | Parent Isotope | Final Stable Nucleus | Main Characteristic |
-| :--- | :--- | :--- | :--- |
-| **Thorium (4n)** | $^{232}\text{Th}$ | $^{208}\text{Pb}$ | Includes the gaseous $^{220}\text{Rn}$ (Thoron). |
-| **Neptunium (4n+1)** | $^{237}\text{Np}$ | $^{209}\text{Bi}$ / $^{205}\text{Tl}$ | Mostly extinct in nature; ends in Bismuth/Thallium. |
-| **Uranium (4n+2)** | $^{238}\text{U}$ | $^{206}\text{Pb}$ | Source of indoor $^{222}\text{Rn}$ gas hazards. |
-| **Actinium (4n+3)** | $^{235}\text{U}$ | $^{207}\text{Pb}$ | Significant for U-Pb dating in geochronology. |
+![Th-232 Decay Chain](Th-232.png)
+---
 
-**Technical Implementation Details:**
-* **Numerical Stiffness:** To handle the disparity between $^{238}\text{U}$ ($4.47 \times 10^9$ years) and $^{214}\text{Po}$ ($0.164$ ms), the simulation utilizes a **logarithmic time scale** and for the matrix exponential solvers, the smaller half-lifes are artificially increased to maintain numerical stability.
-* **Stochastic Noise Analysis:** The Monte Carlo solver (`DecayMonteCarlo.m`) computes **Residuals** ($\Delta N = N_{mc} - N_{ana}$), visualizing the Poissonian fluctuations that dominate when population sizes are small, a phenomenon crucial for sensitive radiation detection.
+## 4. Dependencies & Usage
+* **MATLAB R2018b** or later.
+* **Statistics and Machine Learning Toolbox** (Required only for `DecayMonteCarlo.m`).
 
-## 3. Dependencies
-- **MATLAB R2021a** or later.
-- **Statistics and Machine Learning Toolbox** (for `mnrnd` and `binornd`).
+To run the Source Term simulation:
+1.  Ensure `DecayMatrix.m`, `DecayMonteCarlo.m` and `DecayChain.m` in your path.
+2.  Run `NuclearAccident.m` or any of the other example scripts.
+3.  Input the requested values for the script.
+
+## 📜 License
+This project is open-source under the MIT License.
+
+## 📬 Contact
+Created by **Diego Franco** - B.Sc. Physics Candidate & Data Science Practitioner.
+[LinkedIn](https://www.linkedin.com/in/diegofranco2410/) | [Email](mailto:diegofranco2410@gmail.com)
